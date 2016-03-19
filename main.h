@@ -3,9 +3,9 @@
 using std::vector;
 
 struct sat_stats {
-    sat_stats(short max_delta, short max_val): max_orient_change(max_delta), max_orient_value(max_val) {};
-    short max_orient_change;
-    short max_orient_value;
+    sat_stats(short max_delta, short max_val): max_delta(max_delta), max_value(max_val) {};
+    int max_delta;
+    int max_value;
 };
 
 struct position {
@@ -16,10 +16,11 @@ struct position {
 };
 
 struct sat_position {
-    sat_position(int lat, int lon, int vel): pos(lat, lon), vel(vel), last_photo(0) {};
+    sat_position(int lat, int lon, int vel): pos(lat, lon), vel(vel), last_photo(0), last_photo_offset() {};
     position pos;
     int vel;
     int last_photo; // when last photo has been taken
+    position last_photo_offset;
 };
 
 struct time_range {

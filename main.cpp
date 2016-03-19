@@ -11,6 +11,8 @@
 using std::vector;
 using std::cout;
 using std::endl;
+using std::min;
+using std::max;
 
 const int MAX_COLLECTIONS = 12000;
 
@@ -60,6 +62,41 @@ void moveForward(int time) {
         }
         wrapPosition(sat.pos);
     }
+}
+
+bool canShootPhoto(int current_time, int satellite_idx, photo_request photo) {
+    const auto& stats = STATS[satellite_idx];
+    const auto& sat = POSITIONS[satellite_idx];
+    int time_since_last_photo = current_time - sat.last_photo;
+    int max_movement = time_since_last_photo * stats.max_delta;
+    bool lat_ok = false;
+    bool lon_ok = false;
+
+    int lat_min = sat.pos.lat + max(sat.last_photo_offset.lat - max_movement, -stats.max_value);
+    int lat_max = sat.pos.lat + min(sat.last_photo_offset.lat + max_movement, stats.max_value);
+    assert(lat_min >= MIN_LAT);
+    assert(lat_max <= MAX_LAT);
+    int lon_min = sat.pos.lon + max(sat.last_photo_offset.lon - max_movement, -stats.max_value);
+    int lon_max = sat.pos.lon + min(sat.last_photo_offset.lon + max_movement, stats.max_value);
+
+    position tmp(0, lon_min);
+    position tmp2(0, lon_max);
+    wrapPosition(tmp);
+    wrapPosition(tmp2);
+    lon_min = tmp.lon;
+    lon_max = tmp2.lon;
+
+    assert(lon_min >= MIN_LON);
+    assert(lon_max <= MAX_LON);
+
+    lat_ok = lat_min <= photo.pos.lat && photo.pos.lat <= lat_max;
+    if (lon_min < lon_max) {
+        lon_ok = lon_min <= photo.pos.lon && photo.pos.lon <= lon_max;
+    } else {
+        lon_ok = lon_max >= photo.pos.lon || photo.pos.lon >= lon_min;
+    }
+
+    return lat_ok && lon_ok;
 }
 
 void loadData() {
