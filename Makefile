@@ -19,13 +19,13 @@ test_tree: test_tree.o
 
 run: build
 	@echo "Forever alone"
-	@./run 200 < ./data/forever_alone.in > ./out/forever_alone.out
+	@./run < ./data/forever_alone.in > ./out/forever_alone.out
 	@echo "Constellation"
-	@./run 0 < ./data/constellation.in > ./out/constellation.out
+	@./run < ./data/constellation.in > ./out/constellation.out
 	@echo "Overlap"
-	@./run 0 < ./data/overlap.in > ./out/overlap.out
+	@./run < ./data/overlap.in > ./out/overlap.out
 	@echo "Weekend"
-	@./run 0 < ./data/weekend.in > ./out/weekend.out
+	@./run < ./data/weekend.in > ./out/weekend.out
 
 clean:
 	@rm -f *.o

@@ -97,19 +97,20 @@ vector<photo_request*> canShootPhoto(int current_time, int satellite_idx, tree* 
         result.insert(result.end(), result2.begin(), result2.end());
     }
 
-	vector<photo_request*> ret;
-	std::copy_if(result.begin(), result.end(), ret.begin(), [&current_time](const photo_request *photo) {
-		bool time_ok = false;
-		for (auto& range: photo->ranges) {
-			if (range.start <= current_time && current_time <= range.end) {
-				time_ok = true;
-				break;
-			}
-		}
-		return time_ok;
-	});
+    vector<photo_request*> ret;
+    for (auto& photo: result) {
+        bool time_ok = false;
+        for (auto& range: photo->ranges) {
+            if (range.start <= current_time && current_time <= range.end) {
+                time_ok = true;
+                break;
+            }
+        }
+        if(time_ok)
+            ret.push_back(photo);
+    }
 
-    return result;
+    return ret;
 }
 
 void loadData() {
