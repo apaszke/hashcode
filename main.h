@@ -46,17 +46,14 @@ struct photo_made {
 };
 
 struct collection_info {
-    collection_info(int nr, int val): nr(nr), value(val), eliminated(false) {};
+    collection_info(int nr, int val): nr(nr), value(val), eliminated(false), complete(false) {};
     int nr;
     int value;
     bool eliminated;
     vector<position> locations;
     vector<time_range> ranges;
+    bool complete;
     photo_request request(int which) {
         return photo_request(nr, which, locations[which], ranges);
     }
-};
-
-struct photo_request {
-
 };

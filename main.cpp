@@ -24,6 +24,7 @@ int NUM_SATELLITES;
 int NUM_COLLECTIONS;
 vector<sat_stats> STATS;
 vector<sat_position> POSITIONS;
+vector<sat_position> BACKUP_POSITIONS;
 vector<collection_info> COLLECTIONS;
 
 const int MAX_LON =  647999;
@@ -157,39 +158,58 @@ double MIN_DOUBLE = -std::numeric_limits<double>::infinity();
 
 double COLLECTION_SCORE[MAX_COLLECTIONS];
 
+const int BONUS_COMPLETE = 2;
+
 double simple_score(collection_info &coll) {
-    return double(coll.value) / coll.locations.size();
+    double basic_score = double(coll.value) / coll.locations.size();
+    if (coll.complete) {
+        return basic_score * BONUS_COMPLETE;
+    } else {
+        return basic_score;
+    }
 }
 
 struct by_score {
     bool operator()(int x, int y) {
-        return COLLECTION_SCORE[x] < COLLECTION_SCORE[y];
+        return COLLECTION_SCORE[x] > COLLECTION_SCORE[y];
     }
 };
 
-void choose(vector<photo_request> &result_images, vector<int> &result_collections, int cut_off_num, int cut_off_value = MIN_DOUBLE) {
+void choose(vector<photo_request> &result_images, vector<int> &result_collections, int cut_off_num) {
+    int eliminated_before_cnt = 0;
     for (int i = 0; i < NUM_COLLECTIONS; ++i) {
-        if (COLLECTIONS[i].eliminated) {
-            COLLECTION_SCORE[i] = MIN_DOUBLE;
-        } else {
+        if (!COLLECTIONS[i].eliminated) {
             COLLECTION_SCORE[i] = simple_score(COLLECTIONS[i]);
+        } else {
+            ++eliminated_before_cnt;
         }
     }
     int collections_order[NUM_COLLECTIONS];
-    std::iota(collections_order, collections_order + NUM_COLLECTIONS, 0);
-    std::sort(collections_order, collections_order + NUM_COLLECTIONS, by_score());
-    for (int i = 0; i < NUM_COLLECTIONS - cut_off_num; ++i) {
+    int active_cnt = 0;
+    for (int i = 0; i < NUM_COLLECTIONS; ++i) {
+        if (!COLLECTIONS[i].eliminated) {
+            collections_order[active_cnt++] = i;
+        }
+    }
+    fprintf(stderr, "ACTIVE_CNT %d\n", active_cnt);
+    int cnt_eliminated_now = 0;
+    std::sort(collections_order, collections_order + active_cnt, by_score());
+    int taken_cnt = active_cnt - cut_off_num;
+    for (int i = 0; i < active_cnt; ++i) {
         int which = collections_order[i];
         collection_info &coll = COLLECTIONS[which];
-        if (COLLECTION_SCORE[which] > cut_off_value) {
-            for (int j= 0; j < coll.locations.size() - cut_off_num; ++j) {
+        assert(!coll.eliminated);
+        if (i < taken_cnt) {
+            for (int j= 0; j < coll.locations.size(); ++j) {
                 result_images.push_back(coll.request(j));
             }
             result_collections.push_back(i);
         } else {
             coll.eliminated = true;
+            ++cnt_eliminated_now;
         }
     }
+    fprintf(stderr, "ELIMINATED NOW %d\nELIMINATED BEFORE %d\n", cnt_eliminated_now, eliminated_before_cnt);
 }
 
 position get_offset(photo_made photo, int sat) {
@@ -199,7 +219,16 @@ position get_offset(photo_made photo, int sat) {
 }
 
 void run(vector<photo_request> &images, vector<photo_made> &photos_made) {
+    POSITIONS = BACKUP_POSITIONS;
+    int taken[MAX_COLLECTIONS];
+    for (int coll_id = 0; coll_id < MAX_COLLECTIONS; ++coll_id) {
+        taken[coll_id] = 0;
+    }
+    int info_step = MAX_TIME / 5;
     for (int cur_time = 0; cur_time < MAX_TIME; ++cur_time) {
+        if (cur_time % info_step == 0) {
+            fprintf(stderr, "TIME %d/%d\n", cur_time, MAX_TIME);
+        }
         for (int sat = 0; sat < NUM_SATELLITES; ++sat) {
             for (auto &image: images) {
                 if (image.finished)
@@ -216,32 +245,67 @@ void run(vector<photo_request> &images, vector<photo_made> &photos_made) {
                     POSITIONS[sat].last_photo = cur_time;
                     POSITIONS[sat].last_photo_offset = get_offset(made, sat);
                     photos_made.push_back(made);
+                    ++taken[image.from];
                     break;
                 }
             }
         }
         moveForward(1); // because we can shot at 0
     }
+    for (int coll_id = 0; coll_id < MAX_COLLECTIONS; ++coll_id) {
+        if (taken[coll_id] == COLLECTIONS[coll_id].locations.size()) {
+            COLLECTIONS[coll_id].complete = true;
+        }
+    }
 }
 
+const int MAX_LEFT = 2;
+const double LEFT_DROPPED_PART = 0.25;
+
 int main(int argc, char **argv) {
-    if (argc != 2) {
-        fprintf(stderr, "USAGE %s <cutoff_value>", argv[0]);
-        return 1;
-    }
-    double initial_cutoff = std::stod(argv[1]);
     loadData();
-    vector<photo_request> images;
-    vector<int> collection_ids;
-    choose(images, collection_ids, 0, initial_cutoff);
-    fprintf(stderr, "CHOSEN SET");
-    for (auto i: images) {
-        fprintf(stderr, "IMAGE %d %d (from %d)\n", i.pos.lat, i.pos.lon, i.from);
-    }
+    BACKUP_POSITIONS = POSITIONS;
+
+    int left = 0;
     vector<photo_made> result;
-    run(images, result);
-    printf("%lu\n", result.size());
-    for (auto r: result) {
+    int iteration_nr = 0;
+    vector<photo_made> best_result;
+    int best_result_score = 0;
+    while (iteration_nr == 0 || left > MAX_LEFT) {
+        ++iteration_nr;
+        fprintf(stderr, "ITERATION %d\n", iteration_nr);
+        result = {};
+        vector<photo_request> images;
+        vector<int> collection_ids;
+        int drop_cnt = left * LEFT_DROPPED_PART;
+        if (drop_cnt == 0 && iteration_nr > 1) {
+            drop_cnt = 1;
+        }
+        fprintf(stderr, "DROPPING %d\n", drop_cnt);
+        choose(images, collection_ids, drop_cnt);
+        fprintf(stderr, "CHOSEN IMAGES %lu\nCHOSEN COLLECTIONS %lu\n", images.size(), collection_ids.size());
+        for (int i = 0; i < NUM_COLLECTIONS; ++i) {
+            COLLECTIONS[i].complete = false;
+        }
+        run(images, result);
+        int score = 0;
+        left = collection_ids.size();
+        for (int i = 0; i < NUM_COLLECTIONS; ++i) {
+            if (COLLECTIONS[i].complete) {
+                --left;
+                score += COLLECTIONS[i].value;
+            }
+        }
+        fprintf(stderr, "LEFT: %d\n", left);
+        fprintf(stderr, "SCORE: %d\n", score);
+        if (score > best_result_score) {
+            fprintf(stderr, "BEST (before %d)\n", best_result_score);
+            best_result_score = score;
+            best_result = result;
+        }
+    }
+    printf("%lu\n", best_result.size());
+    for (auto r: best_result) {
         printf("%d %d %d %d\n", r.pos.lat, r.pos.lon, r.time, r.sat);
     }
     return 0;
