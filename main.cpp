@@ -42,12 +42,15 @@ struct collection_info {
 
 int MAX_TIME;
 int CURRENT_TIME;
+int NUM_SATELLITES;
+int NUM_COLLECTIONS;
 vector<sat_stats> STATS;
 vector<sat_position> POSITIONS;
 vector<collection_info> COLLECTIONS;
 
 void moveForward(int time) {
     assert(time > 0);
+    for (int i = 0; i <
 }
 
 void loadData() {
@@ -56,6 +59,7 @@ void loadData() {
 
     int num_satellites;
     scanf("%d", &num_satellites);
+    NUM_SATELLITES = num_satellites;
     STATS.reserve(num_satellites);
     POSITIONS.reserve(num_satellites);
 
@@ -67,6 +71,7 @@ void loadData() {
     }
 
     int num_collections;
+    NUM_COLLECTIONS = num_collections;
     scanf("%d", &num_collections);
     COLLECTIONS.reserve(num_collections);
     for (int i = 0; i < num_collections; ++i) {
