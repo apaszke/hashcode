@@ -241,6 +241,20 @@ position get_offset(photo_made photo, int sat) {
     return ret;
 }
 
+photo_request* selectBestImage(vector<photo_request*>& vec, int *taken) {
+    int best = 99999999;
+    int best_idx = 0;
+    for (int i = 0; i < vec.size(); ++i) {
+        auto& ptr = vec[i];
+        int remaining = COLLECTIONS[ptr->from].locations.size() - taken[ptr->from];
+        if (remaining < best) {
+            best_idx = i;
+            best = remaining;
+        }
+    }
+    return vec[best_idx];
+}
+
 void run(vector<photo_request> &images, vector<photo_made> &photos_made) {
     POSITIONS = BACKUP_POSITIONS;
     int taken[MAX_COLLECTIONS];
@@ -261,7 +275,7 @@ void run(vector<photo_request> &images, vector<photo_made> &photos_made) {
         for (int sat = 0; sat < NUM_SATELLITES; ++sat) {
             vector<photo_request*> possible_vec = canShootPhoto(cur_time, sat, &field);
             if (possible_vec.size() > 0) {
-                auto image = possible_vec[0];
+                photo_request *image = selectBestImage(possible_vec, taken);
                 position pos = image->pos;
                 // we make photo at time cur_time and position pos
                 image->finished = true;

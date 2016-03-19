@@ -18,13 +18,13 @@ test_tree: test_tree.o
 	@./test_tree
 
 run: build
-	@echo "Forever alone"
+	@echo "======================================== Forever alone"
 	@./run < ./data/forever_alone.in > ./out/forever_alone.out
-	@echo "Constellation"
+	@echo "======================================== Constellation"
 	@./run < ./data/constellation.in > ./out/constellation.out
-	@echo "Overlap"
+	@echo "======================================== Overlap"
 	@./run < ./data/overlap.in > ./out/overlap.out
-	@echo "Weekend"
+	@echo "======================================== Weekend"
 	@./run < ./data/weekend.in > ./out/weekend.out
 
 clean:
