@@ -17,7 +17,6 @@ using std::max;
 
 const int MAX_COLLECTIONS = 12000;
 
-
 int MAX_TIME;
 int CURRENT_TIME;
 int NUM_SATELLITES;
@@ -49,7 +48,7 @@ void wrapPosition(position& p) {
 
 }
 
-bool shouldWrapSpeed(position& p) {
+inline bool shouldWrapSpeed(position& p) {
     return (p.lat < MIN_LAT) || (p.lat > MAX_LAT);
 }
 
@@ -151,6 +150,12 @@ void debugData() {
             cout << m.start << " " << m.end << endl;
         }
     }
+    //for (int i = 0; i < NUM_SATELLITES; ++i) {
+        //auto x = POSITIONS[i];
+        //auto y = STATS[i];
+        //cout << i << endl;
+        //cout << x.pos.lat << " " << x.pos.lon << " " << x.vel << " " << y.max_delta << " " << y.max_value << endl;
+    //}
 }
 
 double MIN_DOUBLE = -std::numeric_limits<double>::infinity();
@@ -195,11 +200,16 @@ void choose(vector<photo_request> &result_images, vector<int> &result_collection
 position get_offset(photo_made photo, int sat) {
     position photo_pos = photo.pos;
     position sat_pos = POSITIONS[sat].pos;
-    return position(photo_pos.lat - sat_pos.lat, photo_pos.lon - sat_pos.lon);
+    position ret = position(photo_pos.lat - sat_pos.lat, photo_pos.lon - sat_pos.lon);
+    wrapPosition(ret);
+    return ret;
 }
 
 void run(vector<photo_request> &images, vector<photo_made> &photos_made) {
     for (int cur_time = 0; cur_time < MAX_TIME; ++cur_time) {
+        if (cur_time % 5000 == 0) {
+            fprintf(stderr, "%d/%d\n", cur_time, MAX_TIME);
+        }
         for (int sat = 0; sat < NUM_SATELLITES; ++sat) {
             for (auto &image: images) {
                 if (image.finished)
@@ -224,6 +234,13 @@ void run(vector<photo_request> &images, vector<photo_made> &photos_made) {
     }
 }
 
+void printChosen(vector<photo_request>& images) {
+    fprintf(stderr, "CHOSEN SET");
+    for (auto i: images) {
+        fprintf(stderr, "IMAGE %d %d (from %d)\n", i.pos.lat, i.pos.lon, i.from);
+    }
+}
+
 int main(int argc, char **argv) {
     if (argc != 2) {
         fprintf(stderr, "USAGE %s <cutoff_value>", argv[0]);
@@ -234,10 +251,7 @@ int main(int argc, char **argv) {
     vector<photo_request> images;
     vector<int> collection_ids;
     choose(images, collection_ids, 0, initial_cutoff);
-    fprintf(stderr, "CHOSEN SET");
-    for (auto i: images) {
-        fprintf(stderr, "IMAGE %d %d (from %d)\n", i.pos.lat, i.pos.lon, i.from);
-    }
+    //printChosen(images);
     vector<photo_made> result;
     run(images, result);
     printf("%lu\n", result.size());
