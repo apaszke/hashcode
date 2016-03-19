@@ -177,9 +177,9 @@ double MIN_DOUBLE = -std::numeric_limits<double>::infinity();
 double COLLECTION_SCORE[MAX_COLLECTIONS];
 
 const int BONUS_COMPLETE = 2;
-const int MAX_ITERATIONS = 10;
+const int MAX_ITERATIONS = 30;
 const int MAX_LEFT = 2;
-const double LEFT_DROPPED_PART = 0.25;
+const double LEFT_DROPPED_PART = 0.15;
 
 double simple_score(collection_info &coll) {
     double basic_score = double(coll.value) / coll.locations.size();
@@ -252,7 +252,7 @@ photo_request* selectBestImage(vector<photo_request*>& vec, int *taken) {
             best = remaining;
         }
     }
-    return vec[best_idx];
+    return vec[0];
 }
 
 void run(vector<photo_request> &images, vector<photo_made> &photos_made) {
