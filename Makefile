@@ -1,10 +1,10 @@
-CXXFLAGS+=--std=c++11 -Wall
+CXXFLAGS+=--std=c++11 -Wall -O2
 
 .PHONY: all clean run
 
 all: build run
 
-build: main.o
+build: main.o tree.o
 	$(CXX) $(CXXFLAGS) $^ -o run
 
 test: build

@@ -6,6 +6,7 @@
 #include <numeric>
 #include <limits>
 #include <string>
+#include "main.h"
 
 using std::vector;
 using std::cout;
@@ -13,60 +14,6 @@ using std::endl;
 
 const int MAX_COLLECTIONS = 12000;
 
-struct sat_stats {
-    sat_stats(short max_delta, short max_val): max_orient_change(max_delta), max_orient_value(max_val) {};
-    short max_orient_change;
-    short max_orient_value;
-};
-
-struct sat_position {
-    sat_position(int lat, int lon, int vel): lat(lat), lon(lon), vel(vel), last_photo(0) {};
-    int lat;
-    int lon;
-    int vel;
-    int last_photo; // when last photo has been taken
-};
-
-struct time_range {
-    time_range(int start, int end): start(start), end(end) {};
-    int start;
-    int end;
-};
-
-struct position {
-    position(): lat(0), lon(0) {}
-    position(int lat, int lon): lat(lat), lon(lon) {};
-    int lat;
-    int lon;
-};
-
-struct photo_request {
-    photo_request(int from, int from_nr, const position &pos, const vector<time_range> &ranges):
-        from(from), from_nr(from_nr), pos(pos), ranges(ranges), finished(false) {}
-    int from; // which collection
-    int from_nr; // which position in collection
-    const position &pos;
-    const std::vector<time_range> &ranges;
-    bool finished;
-};
-
-struct photo_made {
-    position pos;
-    int sat;
-    int time;
-};
-
-struct collection_info {
-    collection_info(int nr, int val): nr(nr), value(val), eliminated(false) {};
-    int nr;
-    int value;
-    bool eliminated;
-    vector<position> locations;
-    vector<time_range> ranges;
-    photo_request request(int which) {
-        return photo_request(nr, which, locations[which], ranges);
-    }
-};
 
 int MAX_TIME;
 int CURRENT_TIME;
@@ -76,9 +23,43 @@ vector<sat_stats> STATS;
 vector<sat_position> POSITIONS;
 vector<collection_info> COLLECTIONS;
 
+const int MAX_LON =  647999;
+const int MIN_LON = -648000;
+const int MAX_LAT =  324000;
+const int MIN_LAT = -324000;
+const int LON_CHANGE = -15;
+
+void wrapPosition(position& p) {
+    if (p.lat < MIN_LAT) {
+        p.lat = 2 * MIN_LAT - p.lat;
+        p.lon = MIN_LON + p.lon;
+    } else if (p.lat > MAX_LAT) {
+        p.lat = 2 * MAX_LAT - p.lat;
+        p.lon = MIN_LON + p.lon;
+    }
+
+    if (p.lon < MIN_LON) {
+        p.lon = (p.lon - MIN_LON) + MAX_LON + 1;
+    } else if (p.lon > MAX_LON) {
+        p.lon = (p.lon - MAX_LON) + MIN_LON - 1;
+    }
+
+}
+
+bool shouldWrapSpeed(position& p) {
+    return (p.lat < MIN_LAT) || (p.lat > MAX_LAT);
+}
+
 void moveForward(int time) {
     assert(time > 0);
-    //for (int i = 0; i <
+    for (auto& sat: POSITIONS) {
+        sat.pos.lon += LON_CHANGE * time;
+        sat.pos.lat += sat.vel * time;
+        if (shouldWrapSpeed(sat.pos)) {
+            sat.vel = -sat.vel;
+        }
+        wrapPosition(sat.pos);
+    }
 }
 
 void loadData() {
@@ -174,9 +155,6 @@ void choose(vector<photo_request> &result_images, vector<int> &result_collection
 }
 
 void run(vector<photo_request> &images, vector<photo_made> &photos_made) {
-    for (int sat = 0; sat < NUM_SATELLITES; ++sat) {
-        // INIT SAT
-    }
     for (int cur_time = 0; cur_time < MAX_TIME; ++cur_time) {
         for (int sat = 0; sat < NUM_SATELLITES; ++sat) {
             for (auto &image: images) {
@@ -196,6 +174,7 @@ void run(vector<photo_request> &images, vector<photo_made> &photos_made) {
                 }
             }
         }
+        moveForward(1); // because we can shot at 0
     }
 }
 
