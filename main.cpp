@@ -6,8 +6,8 @@
 #include <numeric>
 #include <limits>
 #include <string>
-#include "main.h"
 
+#include "tree.cpp"
 
 using std::vector;
 using std::cout;
@@ -65,23 +65,11 @@ void moveForward(int time) {
     }
 }
 
-bool canShootPhoto(int current_time, int satellite_idx, photo_request photo) {
+vector<photo_request*> canShootPhoto(int current_time, int satellite_idx, tree* field) {
     const auto& stats = STATS[satellite_idx];
     const auto& sat = POSITIONS[satellite_idx];
     int time_since_last_photo = current_time - sat.last_photo;
     int max_movement = time_since_last_photo * stats.max_delta;
-    bool lat_ok = false;
-    bool lon_ok = false;
-
-    bool time_ok = false;
-    for (auto& range: photo.ranges) {
-        if (range.start <= current_time && current_time <= range.end) {
-            time_ok = true;
-            break;
-        }
-    }
-    if (!time_ok)
-        return false;
 
     int lat_min = sat.pos.lat + max(sat.last_photo_offset.lat - max_movement, -stats.max_value);
     int lat_max = sat.pos.lat + min(sat.last_photo_offset.lat + max_movement, stats.max_value);
@@ -100,14 +88,28 @@ bool canShootPhoto(int current_time, int satellite_idx, photo_request photo) {
     assert(lon_min >= MIN_LON);
     assert(lon_max <= MAX_LON);
 
-    lat_ok = lat_min <= photo.pos.lat && photo.pos.lat <= lat_max;
+    vector<photo_request*> result;
     if (lon_min < lon_max) {
-        lon_ok = lon_min <= photo.pos.lon && photo.pos.lon <= lon_max;
+        result = field->get_area(lat_min, lat_max, lon_min, lon_max);
     } else {
-        lon_ok = lon_max >= photo.pos.lon || photo.pos.lon >= lon_min;
+        result = field->get_area(lat_min, lat_max, lon_min, MAX_LON);
+        auto result2 = field->get_area(lat_min, lat_max, MIN_LON, lon_max);
+        result.insert(result.end(), result2.begin(), result2.end());
     }
 
-    return lat_ok && lon_ok;
+	vector<photo_request*> ret;
+	std::copy_if(result.begin(), result.end(), ret.begin(), [&current_time](const photo_request *photo) {
+		bool time_ok = false;
+		for (auto& range: photo->ranges) {
+			if (range.start <= current_time && current_time <= range.end) {
+				time_ok = true;
+				break;
+			}
+		}
+		return time_ok;
+	});
+
+    return result;
 }
 
 void loadData() {
@@ -245,29 +247,33 @@ void run(vector<photo_request> &images, vector<photo_made> &photos_made) {
         taken[coll_id] = 0;
     }
     int info_step = MAX_TIME / 5;
+
+    tree field(MIN_LAT, MAX_LAT, MIN_LON, MAX_LON);
+    for (auto &image: images) {
+        field.add(&image, image.pos.lat, image.pos.lon);
+    }
+
     for (int cur_time = 0; cur_time < MAX_TIME; ++cur_time) {
         if (cur_time % info_step == 0) {
             fprintf(stderr, "TIME %d/%d\n", cur_time, MAX_TIME);
         }
         for (int sat = 0; sat < NUM_SATELLITES; ++sat) {
-            for (auto &image: images) {
-                if (image.finished)
-                    continue;
-                bool possible = canShootPhoto(cur_time, sat, image);
-                if (possible) {
-                    position pos = image.pos;
-                    // we make photo at time cur_time and position pos
-                    image.finished = true;
-                    photo_made made;
-                    made.pos = pos;
-                    made.time = cur_time;
-                    made.sat = sat;
-                    POSITIONS[sat].last_photo = cur_time;
-                    POSITIONS[sat].last_photo_offset = get_offset(made, sat);
-                    photos_made.push_back(made);
-                    ++taken[image.from];
-                    break;
-                }
+            vector<photo_request*> possible_vec = canShootPhoto(cur_time, sat, &field);
+            if (possible_vec.size() > 0) {
+                auto image = possible_vec[0];
+                position pos = image->pos;
+                // we make photo at time cur_time and position pos
+                image->finished = true;
+                field.remove(image, image->pos.lat, image->pos.lon);
+                photo_made made;
+                made.pos = pos;
+                made.time = cur_time;
+                made.sat = sat;
+                POSITIONS[sat].last_photo = cur_time;
+                POSITIONS[sat].last_photo_offset = get_offset(made, sat);
+                photos_made.push_back(made);
+                ++taken[image->from];
+                break;
             }
         }
         moveForward(1); // because we can shot at 0

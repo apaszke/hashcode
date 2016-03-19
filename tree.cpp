@@ -18,10 +18,10 @@ struct tree {
 
     // last of subtree[0]
     int mx() {
-        return (ex + sx) / 2;
+        return sx + (ex - sx) / 2;
     }
     int my() {
-        return (ey + sy) / 2;
+        return sy + (ey - sy) / 2;
     }
 
     tree(int sx, int ex, int sy, int ey): sx(sx), ex(ex), sy(sy), ey(ey){
@@ -35,6 +35,7 @@ struct tree {
     }
 
     tree* get_subtree(int x, int y) {
+        //cout << "mx" << mx() << " my " << my() << endl;
         if(x <= mx()) {
             if(y <= my()) {
                 if(_subtree[0][0] == 0)
@@ -59,9 +60,9 @@ struct tree {
     }
 
     void add(photo_request *photo, int x, int y) {
-//        cout<<"pos "<<x<<" "<<y<<endl;
-//        cout<<"X "<<sx<<" "<<ex<<endl;
-//        cout<<"Y "<<sy<<" "<<ey<<endl;
+        //cout<<"WTF pos "<<x<<" "<<y<<endl;
+        //cout<<"X "<<sx<<" "<<ex<<endl;
+        //cout<<"Y "<<sy<<" "<<ey<<endl;
         assert(sx <= x && x <= ex && sy <= y && y <= ey);
         number_photos += 1;
         if(is_leaf()) {
