@@ -17,7 +17,6 @@ using std::max;
 
 const int MAX_COLLECTIONS = 12000;
 
-
 int MAX_TIME;
 int CURRENT_TIME;
 int NUM_SATELLITES;
@@ -50,7 +49,7 @@ void wrapPosition(position& p) {
 
 }
 
-bool shouldWrapSpeed(position& p) {
+inline bool shouldWrapSpeed(position& p) {
     return (p.lat < MIN_LAT) || (p.lat > MAX_LAT);
 }
 
@@ -73,6 +72,16 @@ bool canShootPhoto(int current_time, int satellite_idx, photo_request photo) {
     int max_movement = time_since_last_photo * stats.max_delta;
     bool lat_ok = false;
     bool lon_ok = false;
+
+    bool time_ok = false;
+    for (auto& range: photo.ranges) {
+        if (range.start <= current_time && current_time <= range.end) {
+            time_ok = true;
+            break;
+        }
+    }
+    if (!time_ok)
+        return false;
 
     int lat_min = sat.pos.lat + max(sat.last_photo_offset.lat - max_movement, -stats.max_value);
     int lat_max = sat.pos.lat + min(sat.last_photo_offset.lat + max_movement, stats.max_value);
@@ -152,6 +161,12 @@ void debugData() {
             cout << m.start << " " << m.end << endl;
         }
     }
+    //for (int i = 0; i < NUM_SATELLITES; ++i) {
+        //auto x = POSITIONS[i];
+        //auto y = STATS[i];
+        //cout << i << endl;
+        //cout << x.pos.lat << " " << x.pos.lon << " " << x.vel << " " << y.max_delta << " " << y.max_value << endl;
+    //}
 }
 
 double MIN_DOUBLE = -std::numeric_limits<double>::infinity();
@@ -159,6 +174,9 @@ double MIN_DOUBLE = -std::numeric_limits<double>::infinity();
 double COLLECTION_SCORE[MAX_COLLECTIONS];
 
 const int BONUS_COMPLETE = 2;
+const int MAX_ITERATIONS = 10;
+const int MAX_LEFT = 2;
+const double LEFT_DROPPED_PART = 0.25;
 
 double simple_score(collection_info &coll) {
     double basic_score = double(coll.value) / coll.locations.size();
@@ -215,7 +233,9 @@ void choose(vector<photo_request> &result_images, vector<int> &result_collection
 position get_offset(photo_made photo, int sat) {
     position photo_pos = photo.pos;
     position sat_pos = POSITIONS[sat].pos;
-    return position(photo_pos.lat - sat_pos.lat, photo_pos.lon - sat_pos.lon);
+    position ret = position(photo_pos.lat - sat_pos.lat, photo_pos.lon - sat_pos.lon);
+    wrapPosition(ret);
+    return ret;
 }
 
 void run(vector<photo_request> &images, vector<photo_made> &photos_made) {
@@ -259,11 +279,16 @@ void run(vector<photo_request> &images, vector<photo_made> &photos_made) {
     }
 }
 
-const int MAX_LEFT = 2;
-const double LEFT_DROPPED_PART = 0.25;
+void printChosen(vector<photo_request>& images) {
+    fprintf(stderr, "CHOSEN SET");
+    for (auto i: images) {
+        fprintf(stderr, "IMAGE %d %d (from %d)\n", i.pos.lat, i.pos.lon, i.from);
+    }
+}
 
 int main(int argc, char **argv) {
     loadData();
+
     BACKUP_POSITIONS = POSITIONS;
 
     int left = 0;
@@ -271,7 +296,7 @@ int main(int argc, char **argv) {
     int iteration_nr = 0;
     vector<photo_made> best_result;
     int best_result_score = 0;
-    while (iteration_nr == 0 || left > MAX_LEFT) {
+    while (iteration_nr == 0 || (left > MAX_LEFT && iteration_nr < MAX_ITERATIONS)) {
         ++iteration_nr;
         fprintf(stderr, "ITERATION %d\n", iteration_nr);
         result = {};
