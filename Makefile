@@ -4,7 +4,7 @@ CXXFLAGS+=--std=c++11 -Wall -O2
 
 all: build run
 
-build: main.o
+build: main.o tree.o
 	$(CXX) $(CXXFLAGS) $^ -o run
 
 test: build
