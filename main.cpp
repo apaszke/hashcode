@@ -13,10 +13,15 @@ struct sat_stats {
     short max_orient_value;
 };
 
-struct sat_position {
-    sat_position(int lat, int lon, int vel): lat(lat), lon(lon), vel(vel), last_photo(0) {};
+struct position {
+    position(int lat, int lon): lat(lat), lon(lon) {};
     int lat;
     int lon;
+};
+
+struct sat_position {
+    sat_position(int lat, int lon, int vel): pos(lat, lon), vel(vel), last_photo(0) {};
+    position pos;
     int vel;
     int last_photo; // when last photo has been taken
 };
@@ -25,12 +30,6 @@ struct time_range {
     time_range(int start, int end): start(start), end(end) {};
     int start;
     int end;
-};
-
-struct position {
-    position(int lat, int lon): lat(lat), lon(lon) {};
-    int lat;
-    int lon;
 };
 
 struct collection_info {
@@ -48,9 +47,43 @@ vector<sat_stats> STATS;
 vector<sat_position> POSITIONS;
 vector<collection_info> COLLECTIONS;
 
+const int MAX_LON =  647999;
+const int MIN_LON = -648000;
+const int MAX_LAT =  324000;
+const int MIN_LAT = -324000;
+const int LON_CHANGE = -15;
+
+void wrapPosition(position& p) {
+    if (p.lat < MIN_LAT) {
+        p.lat = 2 * MIN_LAT - p.lat;
+        p.lon = MIN_LON + p.lon;
+    } else if (p.lat > MAX_LAT) {
+        p.lat = 2 * MAX_LAT - p.lat;
+        p.lon = MIN_LON + p.lon;
+    }
+
+    if (p.lon < MIN_LON) {
+        p.lon = (p.lon - MIN_LON) + MAX_LON + 1;
+    } else if (p.lon > MAX_LON) {
+        p.lon = (p.lon - MAX_LON) + MIN_LON - 1;
+    }
+
+}
+
+bool shouldWrapSpeed(position& p) {
+    return (p.lat < MIN_LAT) || (p.lat > MAX_LAT);
+}
+
 void moveForward(int time) {
     assert(time > 0);
-    for (int i = 0; i <
+    for (auto& sat: POSITIONS) {
+        sat.pos.lon += LON_CHANGE * time;
+        sat.pos.lat += sat.vel * time;
+        if (shouldWrapSpeed(sat.pos)) {
+            sat.vel = -sat.vel;
+        }
+        wrapPosition(sat.pos);
+    }
 }
 
 void loadData() {
@@ -71,8 +104,8 @@ void loadData() {
     }
 
     int num_collections;
-    NUM_COLLECTIONS = num_collections;
     scanf("%d", &num_collections);
+    NUM_COLLECTIONS = num_collections;
     COLLECTIONS.reserve(num_collections);
     for (int i = 0; i < num_collections; ++i) {
         int value, num_locations, num_ranges;
@@ -110,6 +143,5 @@ int main() {
     loadData();
     for (; CURRENT_TIME < MAX_TIME; ++CURRENT_TIME) {
         moveForward(1);
-        // TODO: Barzo
     }
 }
