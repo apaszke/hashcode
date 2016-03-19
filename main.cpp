@@ -74,8 +74,8 @@ bool canShootPhoto(int current_time, int satellite_idx, photo_request photo) {
 
     int lat_min = sat.pos.lat + max(sat.last_photo_offset.lat - max_movement, -stats.max_value);
     int lat_max = sat.pos.lat + min(sat.last_photo_offset.lat + max_movement, stats.max_value);
-    assert(lat_min >= MIN_LAT);
-    assert(lat_max <= MAX_LAT);
+    lat_min = max(lat_min, MIN_LAT);
+    lat_max = min(lat_max, MAX_LAT);
     int lon_min = sat.pos.lon + max(sat.last_photo_offset.lon - max_movement, -stats.max_value);
     int lon_max = sat.pos.lon + min(sat.last_photo_offset.lon + max_movement, stats.max_value);
 
@@ -191,21 +191,29 @@ void choose(vector<photo_request> &result_images, vector<int> &result_collection
     }
 }
 
+position get_offset(photo_made photo, int sat) {
+    position photo_pos = photo.pos;
+    position sat_pos = POSITIONS[sat].pos;
+    return position(photo_pos.lat - sat_pos.lat, photo_pos.lon - sat_pos.lon);
+}
+
 void run(vector<photo_request> &images, vector<photo_made> &photos_made) {
     for (int cur_time = 0; cur_time < MAX_TIME; ++cur_time) {
         for (int sat = 0; sat < NUM_SATELLITES; ++sat) {
             for (auto &image: images) {
                 if (image.finished)
                     continue;
-                bool possible = false;
+                bool possible = canShootPhoto(cur_time, sat, image);
                 if (possible) {
                     position pos = image.pos;
                     // we make photo at time cur_time and position pos
-                    image.finished = false;
+                    image.finished = true;
                     photo_made made;
                     made.pos = pos;
                     made.time = cur_time;
                     made.sat = sat;
+                    POSITIONS[sat].last_photo = cur_time;
+                    POSITIONS[sat].last_photo_offset = get_offset(made, sat);
                     photos_made.push_back(made);
                     break;
                 }

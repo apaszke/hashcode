@@ -2,7 +2,10 @@ CXXFLAGS+=--std=c++11 -Wall -O2
 
 .PHONY: all clean run
 
-all: build run
+all: build pack 
+
+pack:
+	@tar cf submission_source.tar *.cpp *.h
 
 build: main.o tree.o
 	$(CXX) $(CXXFLAGS) $^ -o run
