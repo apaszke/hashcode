@@ -57,6 +57,3 @@ struct collection_info {
     }
 };
 
-struct photo_request {
-
-};
