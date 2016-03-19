@@ -7,8 +7,11 @@ all: build run
 build: main.o
 	$(CXX) $(CXXFLAGS) $^ -o run
 
-run:
-	@./run
+test: build
+	@./run < ./data/example.in
+
+run: build
+	@./run < ./data/forever_alone.in
 
 clean:
 	@rm -f *.o
