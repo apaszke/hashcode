@@ -8,10 +8,10 @@ build: main.o
 	$(CXX) $(CXXFLAGS) $^ -o run
 
 test: build
-	@./run < ./data/example.in
+	@./run 0 < ./data/example.in
 
 run: build
-	@./run < ./data/forever_alone.in
+	@./run 0 < ./data/forever_alone.in
 
 clean:
 	@rm -f *.o
