@@ -72,6 +72,16 @@ bool canShootPhoto(int current_time, int satellite_idx, photo_request photo) {
     bool lat_ok = false;
     bool lon_ok = false;
 
+    bool time_ok = false;
+    for (auto& range: photo.ranges) {
+        if (range.start <= current_time && current_time <= range.end) {
+            time_ok = true;
+            break;
+        }
+    }
+    if (!time_ok)
+        return false;
+
     int lat_min = sat.pos.lat + max(sat.last_photo_offset.lat - max_movement, -stats.max_value);
     int lat_max = sat.pos.lat + min(sat.last_photo_offset.lat + max_movement, stats.max_value);
     lat_min = max(lat_min, MIN_LAT);
