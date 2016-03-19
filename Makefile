@@ -1,6 +1,6 @@
 CXXFLAGS+=--std=c++11 -Wall -O2
 
-.PHONY: all clean run
+.PHONY: all clean run test_tree
 
 all: build pack 
 
@@ -12,6 +12,10 @@ build: main.o tree.o
 
 test: build
 	@./run 0 < ./data/example.in
+
+test_tree: test_tree.o
+	$(CXX) $(CXXFLAGS) $^ -o $@
+	@./test_tree
 
 run: build
 	@./run 0 < ./data/forever_alone.in

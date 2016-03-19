@@ -56,3 +56,7 @@ struct collection_info {
         return photo_request(nr, which, locations[which], ranges);
     }
 };
+
+struct photo_request {
+
+};
