@@ -6,8 +6,8 @@
 #include <numeric>
 #include <limits>
 #include <string>
-#include "tree.cpp"
 
+#include "tree.cpp"
 
 using std::vector;
 using std::cout;
@@ -205,8 +205,9 @@ position get_offset(photo_made photo, int sat) {
 
 void run(vector<photo_request> &images, vector<photo_made> &photos_made) {
     tree field(MIN_LAT, MAX_LAT, MIN_LON, MAX_LON);
-    for (auto &image: images)
+    for (auto &image: images) {
         field.add(&image, image.pos.lat, image.pos.lon);
+    }
 
     for (int cur_time = 0; cur_time < MAX_TIME; ++cur_time) {
         if (cur_time % 5000 == 0) {
